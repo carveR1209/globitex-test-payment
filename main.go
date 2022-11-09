@@ -6,33 +6,48 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/go-resty/resty/v2"
 )
 
 var SECRETS = map[string]string{
-	"TransactionSigningSecretKey": "TODO",
-	"MessageSigningSecretKey":     "TODO",
-	"APIKey":                      "TODO",
+	"TransactionSigningSecretKey": os.Getenv("TRANSACTION_SECRET_KEY"),
+	"MessageSigningSecretKey":     os.Getenv("MESSAGE_SECRET_KEY"),
+	"APIKey":                      os.Getenv("API_KEY"),
 }
 
 func main() {
+	makePayment()
+}
+
+func getBalances() {
+
+}
+
+func makePayment() {
+	nonce := time.Now().UnixNano() / 1e6
+
 	payment := CreateNewPaymentRequest{
-		RequestTime:          time.Now().UnixNano() / 1e6,
+		RequestTime:          nonce,
 		Amount:               "1",
 		Account:              "LT543080020000000224",
 		BeneficiaryReference: fmt.Sprintf("Testing payment"),
-		BeneficiaryName:      "TODO",
-		BeneficiaryAccount:   "TODO",
-		BeneficiaryAddress:   "TODO",
+		BeneficiaryName:      "UAB Decentralized",
+		BeneficiaryAccount:   "LT593910020000000053",
+		BeneficiaryAddress:   "A. Goštauto g. 8-340, LT-01108 Vilnius, LT",
 	}
 
 	message := payment.createSignatureMessage()
-	payment.TransactionSignature = GenerateHMACSHA512([]byte(message), []byte(SECRETS["TransactionSigningSecretKey"]), &HMACSHA512Options{})
+	payment.TransactionSignature = strings.ToLower(GenerateHMACSHA512([]byte(message), []byte(SECRETS["TransactionSigningSecretKey"]), &HMACSHA512Options{}))
+
+	fmt.Println(payment.TransactionSignature)
+	fmt.Println(payment)
 
 	path := "/api/1/eurowallet/payments"
-	headers := createAuthHeaders(path, message)
+	headers := createAuthHeaders(path, message, nonce)
 
 	response, err := resty.New().R().
 		SetBody(payment).
@@ -58,44 +73,55 @@ func main() {
 }
 
 func (r *CreateNewPaymentRequest) createSignatureMessage() string {
+	// Missing mandatory fields: [amount, beneficiaryName, beneficiaryAccount, beneficiaryReference, transactionSignature, requestTime]}
+
 	var message string
-	message += fmt.Sprintf("requestTime=%d", r.RequestTime)
-	message += fmt.Sprintf("&account=%s", r.Account)
-	message += fmt.Sprintf("&amount=%s", r.Amount)
+	message += fmt.Sprintf("amount=%s", r.Amount)
 	message += fmt.Sprintf("&beneficiaryName=%s", r.BeneficiaryName)
-	if r.BeneficiaryAddress != "" {
-		message += fmt.Sprintf("&beneficiaryAddress=%s", r.BeneficiaryAddress)
-	}
 	message += fmt.Sprintf("&beneficiaryAccount=%s", r.BeneficiaryAccount)
-	if r.BeneficiaryReference != "" {
-		message += fmt.Sprintf("&beneficiaryReference=%s", r.BeneficiaryReference)
-	}
-	if r.UseGbxForFee != false {
-		message += fmt.Sprintf("&useGbxForFee=%t", r.UseGbxForFee)
-	}
+	message += fmt.Sprintf("&beneficiaryReference=%s", r.BeneficiaryReference)
+
+	//message += fmt.Sprintf("&requestTime=%d", r.RequestTime)
+	//message += fmt.Sprintf("&account=%s", r.Account)
+
+
+	//if r.BeneficiaryAddress != "" {
+	//	message += fmt.Sprintf("&beneficiaryAddress=%s", r.BeneficiaryAddress)
+	//}
+	//if r.UseGbxForFee != false {
+	//	message += fmt.Sprintf("&useGbxForFee=%t", r.UseGbxForFee)
+	//}
+
+	fmt.Println(message)
 
 	return message
 }
 
-func createAuthHeaders(path string, formData string) map[string]string {
+func createAuthHeaders(path string, formData string, nonce int64) map[string]string {
 	contentType := "application/json"
-	nonce := fmt.Sprintf("%d", time.Now().UnixNano()/1e6)
+
+	nonceStr := fmt.Sprintf("%d", nonce)
 
 	message := SECRETS["APIKey"]
 	message += "&"
-	message += nonce
+	message += nonceStr
 	message += path
 
+	fmt.Println(formData)
+
+	// Include TransactionSignature signature here?
 	if formData != "" {
 		message += "?"
 		message += formData
 	}
 
+	fmt.Println("createAuthHeaders", message)
+
 	signature := GenerateHMACSHA512([]byte(message), []byte(SECRETS["MessageSigningSecretKey"]), &HMACSHA512Options{})
 
 	return map[string]string{
 		"X-API-Key":    SECRETS["APIKey"],
-		"X-Nonce":      nonce,
+		"X-Nonce":      nonceStr,
 		"X-Signature":  signature,
 		"Content-Type": contentType,
 		"Accept":       contentType,
@@ -142,7 +168,7 @@ type CreateNewPaymentRequest struct {
 	BeneficiaryReference string `json:"beneficiaryReference"`
 
 	// UseGbxForFee should GBX token be used to cover transaction fee.
-	UseGbxForFee bool `json:"useGbxForFee,omitempty"`
+	//UseGbxForFee bool `json:"useGbxForFee,omitempty"`
 
 	// TransactionSignature transaction signature. lower-case hex representation of hmac-sha512 of concatenated request parameters (name=value) delimited by “&” symbol. Note that concatenation parameters should be in a strict order.
 	TransactionSignature string `json:"transactionSignature"`
