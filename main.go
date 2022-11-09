@@ -46,6 +46,8 @@ func makePayment() {
 	fmt.Println(payment.TransactionSignature)
 	fmt.Println(payment)
 
+	message += fmt.Sprintf("&transactionSignature=%s", payment.TransactionSignature)
+
 	path := "/api/1/eurowallet/payments"
 	headers := createAuthHeaders(path, message, nonce)
 
