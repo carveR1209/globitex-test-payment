@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/shopspring/decimal"
 )
 
 var SECRETS = map[string]string{
@@ -20,11 +21,33 @@ var SECRETS = map[string]string{
 }
 
 func main() {
+	getAccounts()
 	makePayment()
 }
 
-func getBalances() {
+func getAccounts(_ ...interface{}) {
+	path := "/api/1/eurowallet/status"
+	headers := createAuthHeaders(path, "", time.Now().UnixNano() / 1e6)
 
+	response, err := resty.New().R().
+		SetHeaders(headers).
+		SetResult(GetAccountStatusResult{}).
+		SetError(ErrorResult{}).
+		Get(fmt.Sprintf("%s%s", "https://api.globitex.com", path))
+
+	if err != nil {
+		fmt.Printf("failed to make a request: %v", err)
+		return
+	}
+
+	if response.StatusCode() != 200 {
+		fmt.Printf("received %v HTTP status: %v", response.StatusCode(), response)
+		return
+	}
+
+	result := response.Result().(*GetAccountStatusResult)
+
+	fmt.Printf("result: %v", result)
 }
 
 func makePayment() {
@@ -189,4 +212,19 @@ type Error struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    string `json:"data,omitempty"`
+}
+
+type GetAccountStatusResult struct {
+	Accounts Accounts `json:"accounts"`
+}
+
+type Accounts []struct {
+	// IBAN IBAN number
+	IBAN string `json:"iban"`
+
+	// Status IBAN status (ACTIVE/CLOSE)
+	Status string `json:"status"`
+
+	// Balance account balance
+	Balance decimal.Decimal `json:"balance"`
 }
