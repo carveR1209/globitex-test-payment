@@ -6,12 +6,15 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/shopspring/decimal"
+	"github.com/gorilla/schema"
+	"github.com/davecgh/go-spew/spew"
 )
 
 var SECRETS = map[string]string{
@@ -66,16 +69,26 @@ func makePayment() {
 	message := payment.createSignatureMessage()
 	payment.TransactionSignature = strings.ToLower(GenerateHMACSHA512([]byte(message), []byte(SECRETS["TransactionSigningSecretKey"]), &HMACSHA512Options{}))
 
+	fmt.Printf("\n############################## PAYMENT ##############################\n\n")
 	fmt.Println(payment.TransactionSignature)
-	fmt.Println(payment)
+	spew.Dump(payment)
 
 	message += fmt.Sprintf("&transactionSignature=%s", payment.TransactionSignature)
 
 	path := "/api/1/eurowallet/payments"
 	headers := createAuthHeaders(path, message, nonce)
 
+	formData, err := MarshalFormData(payment)
+	if err != nil {
+		fmt.Printf("failed to marshal form data: %v", err)
+		return
+	}
+
+	fmt.Printf("\n############################## FORM DATA ##############################\n\n")
+	spew.Dump(formData)
+
 	response, err := resty.New().R().
-		SetBody(payment).
+		SetFormDataFromValues(formData).
 		SetHeaders(headers).
 		SetResult(CreateNewPaymentResponse{}).
 		SetError(ErrorResult{}).
@@ -101,23 +114,24 @@ func (r *CreateNewPaymentRequest) createSignatureMessage() string {
 	// Missing mandatory fields: [amount, beneficiaryName, beneficiaryAccount, beneficiaryReference, transactionSignature, requestTime]}
 
 	var message string
-	message += fmt.Sprintf("amount=%s", r.Amount)
+	message += fmt.Sprintf("requestTime=%d", r.RequestTime)
+	message += fmt.Sprintf("&account=%s", r.Account)
+	message += fmt.Sprintf("&amount=%s", r.Amount)
 	message += fmt.Sprintf("&beneficiaryName=%s", r.BeneficiaryName)
+	if r.BeneficiaryAddress != "" {
+		message += fmt.Sprintf("&beneficiaryAddress=%s", r.BeneficiaryAddress)
+	}
 	message += fmt.Sprintf("&beneficiaryAccount=%s", r.BeneficiaryAccount)
 	message += fmt.Sprintf("&beneficiaryReference=%s", r.BeneficiaryReference)
 
-	//message += fmt.Sprintf("&requestTime=%d", r.RequestTime)
-	//message += fmt.Sprintf("&account=%s", r.Account)
 
 
-	//if r.BeneficiaryAddress != "" {
-	//	message += fmt.Sprintf("&beneficiaryAddress=%s", r.BeneficiaryAddress)
-	//}
 	//if r.UseGbxForFee != false {
 	//	message += fmt.Sprintf("&useGbxForFee=%t", r.UseGbxForFee)
 	//}
 
-	fmt.Println(message)
+	fmt.Printf("\n############################## createSignatureMessage ##############################\n\n")
+	spew.Dump(message)
 
 	return message
 }
@@ -227,4 +241,21 @@ type Accounts []struct {
 
 	// Balance account balance
 	Balance decimal.Decimal `json:"balance"`
+}
+
+
+func MarshalFormData(v interface{}) (url.Values, error) {
+	formData := url.Values{}
+
+	fmt.Printf("\n############################## BODY ##############################\n\n")
+	spew.Dump(v)
+
+
+	encoder := schema.NewEncoder()
+	encoder.SetAliasTag("json")
+	if err := encoder.Encode(v, formData); err != nil {
+		return nil, fmt.Errorf("failed to encode form data: %v", err)
+	}
+
+	return formData, nil
 }
