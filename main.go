@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-resty/resty/v2"
-	"github.com/shopspring/decimal"
-	"github.com/gorilla/schema"
 	"github.com/davecgh/go-spew/spew"
+	"github.com/go-resty/resty/v2"
+	"github.com/gorilla/schema"
+	"github.com/shopspring/decimal"
 )
 
 var SECRETS = map[string]string{
@@ -30,7 +30,7 @@ func main() {
 
 func getAccounts(_ ...interface{}) {
 	path := "/api/1/eurowallet/status"
-	headers := createAuthHeaders(path, "", time.Now().UnixNano() / 1e6)
+	headers := createAuthHeaders(path, "", time.Now().UnixNano()/1e6)
 
 	response, err := resty.New().R().
 		SetHeaders(headers).
@@ -72,8 +72,6 @@ func makePayment() {
 	fmt.Printf("\n############################## PAYMENT ##############################\n\n")
 	fmt.Println(payment.TransactionSignature)
 	spew.Dump(payment)
-
-	message += fmt.Sprintf("&transactionSignature=%s", payment.TransactionSignature)
 
 	path := "/api/1/eurowallet/payments"
 	headers := createAuthHeaders(path, message, nonce)
@@ -124,8 +122,6 @@ func (r *CreateNewPaymentRequest) createSignatureMessage() string {
 	message += fmt.Sprintf("&beneficiaryAccount=%s", r.BeneficiaryAccount)
 	message += fmt.Sprintf("&beneficiaryReference=%s", r.BeneficiaryReference)
 
-
-
 	//if r.UseGbxForFee != false {
 	//	message += fmt.Sprintf("&useGbxForFee=%t", r.UseGbxForFee)
 	//}
@@ -154,9 +150,13 @@ func createAuthHeaders(path string, formData string, nonce int64) map[string]str
 		message += formData
 	}
 
-	fmt.Println("createAuthHeaders", message)
+	fmt.Printf("\n############################## createAuthHeaders ##############################\n\n")
+	spew.Dump(message)
 
 	signature := GenerateHMACSHA512([]byte(message), []byte(SECRETS["MessageSigningSecretKey"]), &HMACSHA512Options{})
+
+	fmt.Printf("\n############################## SIGNATURE ##############################\n\n")
+	spew.Dump(signature)
 
 	return map[string]string{
 		"X-API-Key":    SECRETS["APIKey"],
@@ -243,13 +243,11 @@ type Accounts []struct {
 	Balance decimal.Decimal `json:"balance"`
 }
 
-
 func MarshalFormData(v interface{}) (url.Values, error) {
 	formData := url.Values{}
 
 	fmt.Printf("\n############################## BODY ##############################\n\n")
 	spew.Dump(v)
-
 
 	encoder := schema.NewEncoder()
 	encoder.SetAliasTag("json")
