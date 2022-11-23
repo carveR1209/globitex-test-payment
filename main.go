@@ -24,7 +24,7 @@ var SECRETS = map[string]string{
 }
 
 func main() {
-	getAccounts()
+	//getAccounts()
 	makePayment()
 }
 
@@ -56,14 +56,16 @@ func getAccounts(_ ...interface{}) {
 func makePayment() {
 	nonce := time.Now().UnixNano() / 1e6
 
+	//nonce = 1669206743960
+
 	payment := CreateNewPaymentRequest{
 		RequestTime:          nonce,
-		Amount:               "1",
 		Account:              "LT543080020000000224",
-		BeneficiaryReference: fmt.Sprintf("Testing payment"),
+		Amount:               "1",
 		BeneficiaryName:      "UAB Decentralized",
-		BeneficiaryAccount:   "LT593910020000000053",
 		BeneficiaryAddress:   "A. Goštauto g. 8-340, LT-01108 Vilnius, LT",
+		BeneficiaryAccount:   "LT593910020000000053",
+		BeneficiaryReference: fmt.Sprintf("Testing payment"),
 	}
 
 	message := payment.createSignatureMessage()
@@ -74,7 +76,7 @@ func makePayment() {
 	spew.Dump(payment)
 
 	path := "/api/1/eurowallet/payments"
-	headers := createAuthHeaders(path, message, nonce)
+	headers := createAuthHeaders(path, message+fmt.Sprintf("&transactionSignature=%v", payment.TransactionSignature), nonce)
 
 	formData, err := MarshalFormData(payment)
 	if err != nil {
@@ -142,6 +144,7 @@ func createAuthHeaders(path string, formData string, nonce int64) map[string]str
 	message += nonceStr
 	message += path
 
+	fmt.Printf("\n############################## createAuthHeaders FORM DATA ##############################\n\n")
 	fmt.Println(formData)
 
 	// Include TransactionSignature signature here?
