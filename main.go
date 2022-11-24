@@ -135,7 +135,8 @@ func (r *CreateNewPaymentRequest) createSignatureMessage() string {
 }
 
 func createAuthHeaders(path string, formData string, nonce int64) map[string]string {
-	contentType := "application/json"
+	contentType := "application/x-www-form-urlencoded"
+	acceptType := "application/json"
 
 	nonceStr := fmt.Sprintf("%d", nonce)
 
@@ -166,7 +167,7 @@ func createAuthHeaders(path string, formData string, nonce int64) map[string]str
 		"X-Nonce":      nonceStr,
 		"X-Signature":  signature,
 		"Content-Type": contentType,
-		"Accept":       contentType,
+		"Accept":       acceptType,
 	}
 }
 
