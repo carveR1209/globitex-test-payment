@@ -24,6 +24,12 @@ var SECRETS = map[string]string{
 }
 
 func main() {
+
+	fmt.Printf("\n############################## SECRETS ##############################\n\n")
+	fmt.Printf("TransactionSigningSecretKey: %s\n", SECRETS["TransactionSigningSecretKey"])
+	fmt.Printf("MessageSigningSecretKey: %s\n", SECRETS["MessageSigningSecretKey"])
+	fmt.Printf("APIKey: %s\n", SECRETS["APIKey"])
+
 	//getAccounts()
 	makePayment()
 }
@@ -63,9 +69,9 @@ func makePayment() {
 		Account:              "LT543080020000000224",
 		Amount:               "1",
 		BeneficiaryName:      "UAB Decentralized",
-		BeneficiaryAddress:   "A. Goštauto g. 8-340, LT-01108 Vilnius, LT",
+		//BeneficiaryAddress:   "A. Goštauto g. 8-340, LT-01108 Vilnius, LT",
 		BeneficiaryAccount:   "LT593910020000000053",
-		BeneficiaryReference: fmt.Sprintf("Testing payment"),
+		BeneficiaryReference: "Testing payment",
 	}
 
 	message := payment.createSignatureMessage()
@@ -118,9 +124,11 @@ func (r *CreateNewPaymentRequest) createSignatureMessage() string {
 	message += fmt.Sprintf("&account=%s", r.Account)
 	message += fmt.Sprintf("&amount=%s", r.Amount)
 	message += fmt.Sprintf("&beneficiaryName=%s", r.BeneficiaryName)
-	if r.BeneficiaryAddress != "" {
-		message += fmt.Sprintf("&beneficiaryAddress=%s", r.BeneficiaryAddress)
-	}
+
+	//if r.BeneficiaryAddress != "" {
+	//	message += fmt.Sprintf("&beneficiaryAddress=%s", r.BeneficiaryAddress)
+	//}
+
 	message += fmt.Sprintf("&beneficiaryAccount=%s", r.BeneficiaryAccount)
 	message += fmt.Sprintf("&beneficiaryReference=%s", r.BeneficiaryReference)
 
