@@ -65,10 +65,10 @@ func makePayment() {
 	//nonce = 1669206743960
 
 	payment := CreateNewPaymentRequest{
-		RequestTime:          nonce,
-		Account:              "LT543080020000000224",
-		Amount:               "1",
-		BeneficiaryName:      "UAB Decentralized",
+		RequestTime:     nonce,
+		Account:         "LT543080020000000224",
+		Amount:          "1",
+		BeneficiaryName: "UAB Decentralized",
 		//BeneficiaryAddress:   "A. Goštauto g. 8-340, LT-01108 Vilnius, LT",
 		BeneficiaryAccount:   "LT593910020000000053",
 		BeneficiaryReference: "Testing payment",
@@ -77,12 +77,12 @@ func makePayment() {
 	message := payment.createSignatureMessage()
 	payment.TransactionSignature = strings.ToLower(GenerateHMACSHA512([]byte(message), []byte(SECRETS["TransactionSigningSecretKey"]), &HMACSHA512Options{}))
 
+	path := "/api/1/eurowallet/payments"
+	headers := createAuthHeaders(path, message+fmt.Sprintf("&transactionSignature=%v", payment.TransactionSignature), nonce)
+
 	fmt.Printf("\n############################## PAYMENT ##############################\n\n")
 	fmt.Println(payment.TransactionSignature)
 	spew.Dump(payment)
-
-	path := "/api/1/eurowallet/payments"
-	headers := createAuthHeaders(path, message+fmt.Sprintf("&transactionSignature=%v", payment.TransactionSignature), nonce)
 
 	formData, err := MarshalFormData(payment)
 	if err != nil {
@@ -92,6 +92,8 @@ func makePayment() {
 
 	fmt.Printf("\n############################## FORM DATA ##############################\n\n")
 	spew.Dump(formData)
+	fmt.Printf("\n############################## HEADERS ##############################\n\n")
+	spew.Dump(headers)
 
 	response, err := resty.New().R().
 		SetFormDataFromValues(formData).
