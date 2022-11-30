@@ -96,7 +96,7 @@ func makePayment() {
 	spew.Dump(headers)
 
 	response, err := resty.New().R().
-		SetFormDataFromValues(formData).
+		SetBody(strings.Replace(formData.Encode(), "+", "%20", -1)).
 		SetHeaders(headers).
 		SetResult(CreateNewPaymentResponse{}).
 		SetError(ErrorResult{}).
